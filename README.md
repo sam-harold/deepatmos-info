@@ -1,6 +1,6 @@
 # DeepAtmos — System Architecture
 
-**Real-Time MRT Tunnel Atmospheric Hazard Detection and Alert Framework**
+**Real-Time Tunnel Atmospheric Hazard Detection and Alert Framework**
 
 > This is the single authoritative architecture reference for the entire DeepAtmos system. It covers all five layers end-to-end: Node Layer (ESP32), Edge Layer (Raspberry Pi 5), Application Layer (FastAPI cloud), Frontend Web (React), and Frontend Mobile (Flutter).
 
@@ -20,13 +20,12 @@
 10. [Data Schemas — Cross-Layer](#10-data-schemas--cross-layer)
 11. [Field Naming Convention](#11-field-naming-convention)
 12. [Colour & Theme System](#12-colour--theme-system)
-13. [Open Questions / TODOs](#13-open-questions--todos)
 
 ---
 
 ## 1. System Overview
 
-DeepAtmos is a five-layer distributed IoT system that monitors atmospheric conditions inside MRT tunnels in real time, detects hazards using both reactive rule-based and predictive machine learning methods, and delivers alerts to safety personnel through a web dashboard and a mobile pager app.
+DeepAtmos is a five-layer distributed IoT system that monitors atmospheric conditions inside tunnels in real time, detects hazards using both reactive rule-based and predictive machine learning methods, and delivers alerts to safety personnel through a web dashboard and a mobile pager app.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -71,8 +70,8 @@ DeepAtmos is a five-layer distributed IoT system that monitors atmospheric condi
 | Layer | Component | Responsibility |
 |---|---|---|
 | Node | ESP32 | Sensor data collection, actuator control (traffic light, buzzer, buttons) |
-| Edge | Raspberry Pi 5 | Ingestion, local storage, Expert System, GRU inference, alert suppression, Kafka publish, cloud sync |
-| Application | FastAPI + PostgreSQL + Kafka | Cloud backend — auth, user management, readings storage, alert lifecycle, SSE, FCM, audit |
+| Edge | Raspberry Pi 5 | Ingestion, local storage, Expert System, GRU inference, alert suppression, Kafka publish, cloud sync, heartbeats |
+| Application | FastAPI + PostgreSQL + Kafka | Cloud backend — auth, user management, readings storage, alert lifecycle, SSE, FCM, audit, heartbeats |
 | Frontend Web | React SPA | Primary operational + admin interface for all roles |
 | Frontend Mobile | Flutter app | Lightweight pager — FCM alerts, alert feed, alert summary |
 
@@ -110,11 +109,10 @@ Scale: each 1 km tunnel segment supports up to 4 edges and 20 nodes.
 
 ## 3. Communication Model
 
-| Channel | Direction | Mechanism | Timing |
-|---|---|---|---|
 | Sensor readings | Node → Edge | TCP + TLS (persistent connection) | Every reading cycle |
 | Actuator commands | Edge → Node | TCP (same connection) | Immediate on alert |
 | Readings sync | Edge → App | HTTP/S batch `POST /readings/sync` | Every 300 seconds |
+| Edge heartbeat | Edge → App | HTTP/S `POST /system/edges/heartbeat` | Every 300 seconds |
 | Alerts | Edge → App | Kafka `edge.alerts` topic | Immediate on trigger |
 | Readings to web | App → Web | HTTPS polling | Every 300 seconds |
 | Alerts to web | App → Web | SSE `/incidents/stream` | Immediate on Kafka receipt |
@@ -134,6 +132,8 @@ Scale: each 1 km tunnel segment supports up to 4 edges and 20 nodes.
 | Serialisation | ArduinoJson |
 | Sensors | DHT22 (temp/humidity), MQ-135/7/4 (CO₂/CO/CH₄), PMS5003 (PM2.5/PM10) |
 | Actuators | Traffic Light LED array, Buzzer, Physical buttons |
+
+> **Code Location:** The firmware for all ESP32 nodes is maintained within the Edge Layer repository at `edge/firmware/`.
 
 ### Physical Node Cluster (PJY-1-1-x)
 
@@ -226,6 +226,7 @@ ESP32 Payload Received
        │                     if alert → Kafka publish + actuator TCP cmd
        │
    300s sync worker → POST /readings/sync → App Layer
+   300s sync worker → POST /system/edges/heartbeat → App Layer
    14-day purge of synced records
 ```
 
@@ -259,7 +260,7 @@ CREATE INDEX idx_readings_device_timestamp ON readings (node_id, timestamp DESC)
 
 ### Design: Predictive, not Reactive
 
-The GRU model predicts **next-cycle severity** from the last 10 readings, firing before the Expert System threshold is crossed. This is the primary ML novelty of DeepAtmos.
+The GRU model predicts **next-cycle severity** from the last 60 readings, firing before the Expert System threshold is crossed. This is the primary ML novelty of DeepAtmos.
 
 ```
 Expert System (reactive):   CO₂ = 2100 ppm → alert NOW
@@ -271,7 +272,7 @@ Both run in parallel. If both fire on the same reading: highest severity wins, o
 ### Model
 
 ```
-Input: (10, 9)  — 10 timesteps × 9 sensor features
+Input: (60, 9)  — 10 timesteps × 9 sensor features
         ↓
 GRU(64, return_sequences=False)
         ↓
@@ -299,7 +300,7 @@ Dense(3, Softmax)  →  [P(normal), P(warning), P(critical)]
 
 ### GRU Cold Start
 
-Buffer fills after 10 readings (~50 minutes). Expert System provides sole coverage during this window — no gap in alert protection.
+Buffer fills after 60 readings (~5 minutes). Expert System provides sole coverage during this window — no gap in alert protection.
 
 ---
 
@@ -361,10 +362,10 @@ Buffer fills after 10 readings (~50 minutes). Expert System provides sole covera
 | Role | Users | Tunnels/Edges/Nodes | Readings | Alerts | Reports | Audit | System |
 |---|---|---|---|---|---|---|---|
 | Master Admin | ✅ All | ✅ All | ✅ | ✅ Full | ✅ | ✅ | ✅ |
-| Admin | ✅ Scoped | ✅ Scoped | ✅ | ✅ Full | ✅ | ✅ | ✅ |
+| Admin | ✅ Scoped | ✅ Scoped | ✅ | ✅ Full | ✅ | ❌ | ✅ |
 | Technician | ❌ | ✅ Manage (scoped) | ✅ | ✅ Ack+Resolve+Notes | ✅ | ❌ | ✅ |
-| Associate | ❌ | ❌ View only | ✅ | ✅ Acknowledge only | ❌ | ❌ | ❌ |
-| Viewer | ❌ | ❌ View only | ✅ | ✅ View only | ❌ | ❌ | ❌ |
+| Associate | ❌ | ❌ View only | ✅ | ✅ Ack+Resolve+Notes | ✅ (read) | ❌ | ❌ |
+| Viewer | ❌ | ❌ View only | ✅ | ✅ View only | ✅ (read) | ❌ | ❌ |
 
 > **Scoped** — assigned to tunnels via `user_tunnel_assignments`. All scoped roles operate only within assigned tunnels.
 
@@ -391,7 +392,7 @@ Buffer fills after 10 readings (~50 minutes). Expert System provides sole covera
 | `POST` | `/auth/logout` | Revoke current session |
 | `POST` | `/auth/logout/all` | Revoke all sessions |
 | `POST` | `/auth/mobile-qr` | Generate 5-min single-use QR token |
-| `POST` | `/auth/mobile-verify` | Exchange QR token → session token |
+| `POST` | `/auth/mobile-verify` | Mobile exchanges QR token for session token |
 | `GET` | `/auth/mobile-sessions` | List active mobile sessions |
 | `DELETE` | `/auth/mobile-sessions/{id}` | Revoke mobile session |
 
@@ -448,9 +449,9 @@ Alert lifecycle: `Active → Acknowledged → Resolved → (Reopened → ...)`
 | `GET` | `/alerts/{id}` | Viewer |
 | `GET` | `/alerts/stream` | Viewer (SSE) |
 | `PATCH` | `/alerts/{id}/acknowledge` | Associate |
-| `PATCH` | `/alerts/{id}/resolve` | Technician |
-| `PATCH` | `/alerts/{id}/reopen` | Technician |
-| `POST` | `/alerts/{id}/notes` | Technician |
+| `PATCH` | `/alerts/{id}/resolve` | Associate |
+| `PATCH` | `/alerts/{id}/reopen` | Associate |
+| `POST` | `/alerts/{id}/notes` | Associate |
 
 > **Naming note:** The Application Layer API uses `alerts`. The Frontend Web uses `incidents` in routes and component names. These refer to the same entity — the divergence is UI-only.
 
@@ -468,10 +469,12 @@ On message receipt from `edge.alerts` → persist to PostgreSQL → generate `al
 
 | Method | Endpoint | Min Role |
 |---|---|---|
-| `GET` | `/reports/alert-frequency` | Technician |
-| `GET` | `/reports/node-uptime` | Technician |
-| `GET` | `/reports/sensor-trends` | Technician |
-| `GET` | `/reports/export` | Technician (CSV only) |
+| `GET` | `/reports/alert-frequency` | Viewer |
+| `GET` | `/reports/node-uptime` | Viewer |
+| `GET` | `/reports/sensor-trends` | Viewer |
+| `GET` | `/reports/tunnel-sensor-ranges` | Viewer |
+| `GET` | `/reports/tunnel-worst-node` | Viewer |
+| `GET` | `/reports/export` | Technician |
 
 #### 10. Audit Log
 
@@ -487,6 +490,8 @@ Tracked actions: user login/logout, user CRUD, role changes, tunnel/edge/node CR
 |---|---|---|
 | `GET` | `/system/status` | Technician |
 | `GET` | `/system/edges/connectivity` | Technician |
+| `POST` | `/system/edges/heartbeat` | Internal (sync worker) |
+| `GET` | `/system/overview` | Viewer (aggregate) |
 
 Offline detection: edge not synced within 600s → marked `offline`.
 
@@ -527,6 +532,7 @@ ALTER TABLE nodes ALTER COLUMN capabilities TYPE JSONB USING capabilities::jsonb
 | Styling | Tailwind CSS v4 |
 | Charts | Recharts |
 | Map | MapLibre GL (`CoordinateMapPicker`, `TunnelMapView`) |
+| Data | TanStack Query + SSE (`SSEProvider`) |
 | Hosting | Render Static Site |
 
 ### App Composition
@@ -608,7 +614,8 @@ Black and White — black sidebar (`#111827`), white background (`#FFFFFF`). RGY
 | State | `riverpod` |
 | QR Scanner | `mobile_scanner` |
 | External Browser | `url_launcher` |
-| Build | Standard `flutter build apk` (no EAS required) |
+| Notifications | `flutter_local_notifications` |
+| Build | Standard `flutter build apk` |
 
 ### Three Screens
 
@@ -622,7 +629,7 @@ QR Scan  ──►  Alert Feed  ──►  Alert Summary
 |---|---|---|
 | QR Scan | `/qr-scan` | Shown when no session. Camera opens immediately. Scans `qr_token` → POST `/auth/mobile-verify` → stores session_token |
 | Alert Feed | `/` (index) | Last 50 alerts, critical pinned, pull-to-refresh. `[•••]` → unpair |
-| Alert Summary | `/alerts/:id` | 9-metric reading summary with ⚠️ flags. "Open Full Alert in Web ↗" button |
+| Alert Summary | `/incidents/:id` | 9-metric reading summary with ⚠️ flags. "Open Full Alert in Web ↗" button |
 
 ### FCM Handlers
 
@@ -631,11 +638,11 @@ QR Scan  ──►  Alert Feed  ──►  Alert Summary
 FirebaseMessaging.onMessage.listen(showAlertBanner);
 
 // Background tap
-FirebaseMessaging.onMessageOpenedApp.listen((msg) => router.go('/alerts/${msg.data["alert_id"]}'));
+FirebaseMessaging.onMessageOpenedApp.listen((msg) => router.go('/incidents/${msg.data["alert_id"]}'));
 
 // Killed app tap
 final initial = await FirebaseMessaging.instance.getInitialMessage();
-if (initial != null) router.go('/alerts/${initial.data["alert_id"]}');
+if (initial != null) router.go('/incidents/${initial.data["alert_id"]}');
 ```
 
 ### Session
