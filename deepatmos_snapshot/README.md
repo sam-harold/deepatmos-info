@@ -156,6 +156,35 @@ Access is managed via JWT for web and session-based tokens for mobile, with stri
 
 ---
 
+## 5. Architectural Deep-Dives (Structural Highlights)
+
+These modules demonstrate the core engineering principles and complex logic flow of the DeepAtmos system.
+
+### 5.1 [Predictive GRU Inference (Edge)](./edge/app/services/gru_model.py)
+A TFLite-powered predictive layer that forecasts next-state severity from a 60-timestep window of sensor data. Demonstrates:
+- **TFLite Runtime Integration**: Optimized for ARM (Raspberry Pi 5).
+- **Temporal Sequence Processing**: Handling 9-axis sensor vectors across time.
+- **Normalisation Pipeline**: Dynamic min-max scaling of raw telemetry.
+
+### 5.2 [Expert System Rules Engine (Edge)](./edge/app/services/expert_system.py)
+The reactive safety layer of the system. Demonstrates:
+- **Multi-Sensor Analysis**: Concurrent evaluation of CO, CO2, CH4, and PM metrics.
+- **Severity Precedence**: High-integrity check of critical vs. warning thresholds.
+
+### 5.3 [Real-Time SSE Context (Web)](./frontend-web/src/contexts/SSEContext.tsx)
+A high-performance React context for managing real-time incident streams. Demonstrates:
+- **Event Batching**: Buffering incoming events (250ms) to prevent UI thread saturation.
+- **Robust Connection Lifecycle**: Automatic JWT refresh and exponential backoff for EventSource recovery.
+- **State Deduplication**: Efficient merging of incident updates to minimize re-renders.
+
+### 5.4 [RBAC & Incident Lifecycle (Cloud)](./application/app/api/routes/alerts.py)
+A FastAPI router implementing complex incident state transitions. Demonstrates:
+- **Granular RBAC**: Role-based decorators (Technician, Associate, Viewer).
+- **Incident Lifecycle**: Transitions from `active` → `acknowledged` → `resolved`.
+- **Immutable Auditing**: Integration with a central audit service for all state changes.
+
+---
+
 ## 6. Data Models (Abstracted)
 
 The following schemas define the core entities within the DeepAtmos ecosystem.
