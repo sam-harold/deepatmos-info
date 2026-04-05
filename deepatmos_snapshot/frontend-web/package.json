@@ -1,0 +1,21 @@
+{
+  "name": "deepatmos-frontend-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "react": "Frontend core",
+    "react-router-dom": "Navigation and routing architecture",
+    "@tanstack/react-query": "Asynchronous state and server data management",
+    "axios": "API client for backend communication",
+    "zustand": "Lightweight global state management",
+    "maplibre-gl": "High-performance geospatial visualization",
+    "recharts": "Data visualization and analytics",
+    "radix-ui": "Accessibility-focused UI primitives",
+    "tailwindcss": "Utility-first CSS styling framework",
+    "lucide-react": "Standardized iconography system",
+    "date-fns": "Temporal data manipulation",
+    "zod": "Schema-first data validation",
+    "jwt-decode": "Client-side token property extraction"
+  }
+}

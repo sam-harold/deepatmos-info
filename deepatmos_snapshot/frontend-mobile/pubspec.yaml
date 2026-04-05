@@ -1,0 +1,22 @@
+name: deepatmos_mobile
+description: DeepAtmos mobile pager app — tunnel air quality alerts.
+version: 1.0.0
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  go_router: Navigation and deep-linking architecture
+  dio: API client for backend communication
+  firebase_core: Push notification infrastructure core
+  firebase_messaging: FCM integration for real-time alerts
+  flutter_secure_storage: Encrypted local storage for session tokens
+  flutter_riverpod: Reactive state management and dependency injection
+  mobile_scanner: QR code scanning for device pairing
+  flutter_local_notifications: Foreground alert handling and OS integration
+  permission_handler: Hardware permission management (camera, notifications)
+
+flutter:
+  uses-material-design: true
