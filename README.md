@@ -43,6 +43,7 @@ graph TD
     subgraph "Edge Layer (Inside Tunnel)"
         RPi1["Edge Server 1 (RPi 5)"]
         RPi2["Edge Server n... (RPi 5)"]
+        SQLite[(Local SQLite Buffer)]
     end
 
     subgraph "Node Layer (In-Situ)"
@@ -57,8 +58,12 @@ graph TD
     ESP2 -- "TCP/TLS" --> RPi1
     ESP3 -- "TCP/TLS" --> RPi2
 
-    RPi1 -- "HTTP Sync" --> FastAPI
-    RPi2 -- "HTTP Sync" --> FastAPI
+    %% Local Buffering
+    RPi1 -.-> SQLite
+    RPi2 -.-> SQLite
+
+    RPi1 -- "HTTP Batch Sync" --> FastAPI
+    RPi2 -- "HTTP Batch Sync" --> FastAPI
 
     RPi1 -- "Alert Publish" --> Kafka
     RPi2 -- "Alert Publish" --> Kafka
