@@ -42,14 +42,14 @@ graph TD
 
     subgraph "Edge Layer (Inside Tunnel)"
         RPi1["Edge Server 1 (RPi 5)"]
-        RPi2["Edge Server 2 (RPi 5)"]
+        RPi2["Edge Server n... (RPi 5)"]
     end
 
     subgraph "Node Layer (In-Situ)"
         direction LR
-        ESP1["Node A (ESP32)"]
-        ESP2["Node B (ESP32)"]
-        ESP3["Node C (ESP32)"]
+        ESP1["Node 1 (ESP32)"]
+        ESP2["Node 2 (ESP32)"]
+        ESP3["Node n... (ESP32)"]
     end
 
     %% Communication Flows
@@ -57,11 +57,16 @@ graph TD
     ESP2 -- "TCP/TLS" --> RPi1
     ESP3 -- "TCP/TLS" --> RPi2
 
-    RPi1 -- "Cloud Sync / Kafka Alerts" --> FastAPI
-    RPi2 -- "Cloud Sync / Kafka Alerts" --> FastAPI
-    
+    RPi1 -- "HTTP Sync" --> FastAPI
+    RPi2 -- "HTTP Sync" --> FastAPI
+
+    RPi1 -- "Alert Publish" --> Kafka
+    RPi2 -- "Alert Publish" --> Kafka
+
+    Kafka -- "Consumption" --> FastAPI
+
     FastAPI -- "SSE Alerts" --> Web
-    FastAPI -- "FCM Notifications" --> Mobile
+    FastAPI -- "FCM Push" --> Mobile
     Web -- "Auth/Config" --> FastAPI
 ```
 
@@ -97,14 +102,14 @@ graph LR
 graph TD
     T[Tunnel PJY] --> K1[Kilometre 1]
     T --> K2[Kilometre 2]
-    
+
     K1 --> E11[Edge PJY-1-1]
     K1 --> E12[Edge PJY-1-2]
-    
+
     E11 --> N111[Node PJY-1-1-1]
     E11 --> N112[Node PJY-1-1-2]
     E11 --> N113[Node PJY-1-1-3]
-    
+
     E12 --> N121[Node PJY-1-2-1]
     E12 --> N122[Node PJY-1-2-2]
 ```
@@ -216,7 +221,7 @@ sequenceDiagram
 
     ESP->>Edge: TCP Stream (Raw Readings)
     Edge->>Edge: Validate & Analyze (Expert System + ML)
-    
+
     alt Alert Triggered
         Edge->>Kafka: Publish Alert (edge.alerts)
         Kafka->>App: Consume Alert
