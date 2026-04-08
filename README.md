@@ -68,10 +68,14 @@ graph TD
     RPi1 -- "Alert Publish" --> Kafka
     RPi2 -- "Alert Publish" --> Kafka
 
+    %% Application Layer Persistence
     Kafka -- "Consumption" --> FastAPI
+    FastAPI -- "ORM Persistence" --> DB
 
+    %% User Facing
     FastAPI -- "SSE Alerts" --> Web
     FastAPI -- "FCM Push" --> Mobile
+    Web -- "Auth/Config (REST)" --> FastAPI
 ```
 
 ### Layer Responsibilities
