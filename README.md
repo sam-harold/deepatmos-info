@@ -47,21 +47,27 @@ graph TD
         SQLite2[(Local SQLite n...)]
     end
 
-    subgraph "Node Layer (In-Situ)"
+    subgraph "Node Layer (On-site)"
         direction LR
         ESP1["Node 1 (ESP32)"]
         ESP2["Node 2 (ESP32)"]
         ESP3["Node n... (ESP32)"]
+        ESP4["Node 1 (ESP32)"]
+        ESP5["Node 2 (ESP32)"]
+        ESP6["Node n... (ESP32)"]
     end
 
     %% Communication Flows
     ESP1 -- "TCP/TLS" --> RPi1
     ESP2 -- "TCP/TLS" --> RPi1
-    ESP3 -- "TCP/TLS" --> RPi2
+    ESP3 -- "TCP/TLS" --> RPi1
+    ESP4 -- "TCP/TLS" --> RPi2
+    ESP5 -- "TCP/TLS" --> RPi2
+    ESP6 -- "TCP/TLS" --> RPi2
 
     %% Local Buffering
-    RPi1 -. "Local Write" .-> SQLite1
-    RPi2 -. "Local Write" .-> SQLite2
+    RPi1 -. "Local Read/Write" .-> SQLite1
+    RPi2 -. "Local Read/Write" .-> SQLite2
 
     RPi1 -- "HTTP Batch Sync" --> FastAPI
     RPi2 -- "HTTP Batch Sync" --> FastAPI
@@ -70,7 +76,7 @@ graph TD
     RPi2 -- "Alert Publish" --> Kafka
 
     %% Application Layer Persistence
-    Kafka -- "Consumption" --> FastAPI
+    Kafka -- "Alert Consumption" --> FastAPI
     FastAPI -. "ORM Persistence" .-> DB
 
     %% User Facing
@@ -115,7 +121,7 @@ graph TD
     subgraph "Segment 1"
         K1 --> E11[Edge PJY-1-1]
         K1 --> E12[Edge PJY-1-2]
-        
+
         E11 --> N111[Node 1]
         E11 --> N11n[Node n...]
     end
@@ -235,7 +241,7 @@ sequenceDiagram
 
     ESP->>Edge: TCP Stream (Raw Readings)
     Edge->>Edge: Validate & Analyze (Expert System + ML)
-    
+
     alt Alert Triggered
         Edge->>Kafka: Publish Alert (edge.alerts)
         Kafka->>App: Consume Alert
