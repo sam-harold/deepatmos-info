@@ -70,7 +70,7 @@ graph TD
 
     %% Application Layer Persistence
     Kafka -- "Consumption" --> FastAPI
-    FastAPI -.- "ORM Persistence" -.-> DB
+    FastAPI -.-> "ORM Persistence" -.-> DB
 
     %% User Facing
     FastAPI -- "SSE Alerts" --> Web
