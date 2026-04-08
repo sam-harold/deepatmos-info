@@ -67,7 +67,7 @@ graph TD
 
     FastAPI -- "SSE Alerts" --> Web
     FastAPI -- "FCM Push" --> Mobile
-    Web -- "Auth/Config" --> FastAPI
+    Web -- "Management" --> FastAPI
 ```
 
 ### Layer Responsibilities
