@@ -41,23 +41,27 @@ graph TD
     end
 
     subgraph "Edge Layer (Inside Tunnel)"
-        RPi["Edge Server (RPi 5)"]
-        SQLite[(Local SQLite)]
+        RPi1["Edge Server 1 (RPi 5)"]
+        RPi2["Edge Server 2 (RPi 5)"]
     end
 
     subgraph "Node Layer (In-Situ)"
-        ESP["Sensor Node (ESP32)"]
+        direction LR
+        ESP1["Node A (ESP32)"]
+        ESP2["Node B (ESP32)"]
+        ESP3["Node C (ESP32)"]
     end
 
     %% Communication Flows
-    ESP -- "TCP/TLS (Readings)" --> RPi
-    RPi -- "HTTP/S (Cloud Sync)" --> FastAPI
-    RPi -- "Kafka (Alerts)" --> Kafka
-    Kafka -- "Consumption" --> FastAPI
-    FastAPI -- "SSE (Real-time Alerts)" --> Web
-    FastAPI -- "FCM (Push Notifications)" --> Mobile
-    FastAPI -- "REST" --> Web
-    FastAPI -- "REST" --> Mobile
+    ESP1 -- "TCP/TLS" --> RPi1
+    ESP2 -- "TCP/TLS" --> RPi1
+    ESP3 -- "TCP/TLS" --> RPi2
+
+    RPi1 -- "Cloud Sync / Kafka Alerts" --> FastAPI
+    RPi2 -- "Cloud Sync / Kafka Alerts" --> FastAPI
+    
+    FastAPI -- "SSE Alerts" --> Web
+    FastAPI -- "FCM Notifications" --> Mobile
     Web -- "Auth/Config" --> FastAPI
 ```
 
@@ -88,6 +92,22 @@ graph LR
 **Example:** `PJY-1-1-1` = Putrajaya Line, Kilometre 1, Edge 1, Node 1.
 
 **Hierarchy:**
+
+```mermaid
+graph TD
+    T[Tunnel PJY] --> K1[Kilometre 1]
+    T --> K2[Kilometre 2]
+    
+    K1 --> E11[Edge PJY-1-1]
+    K1 --> E12[Edge PJY-1-2]
+    
+    E11 --> N111[Node PJY-1-1-1]
+    E11 --> N112[Node PJY-1-1-2]
+    E11 --> N113[Node PJY-1-1-3]
+    
+    E12 --> N121[Node PJY-1-2-1]
+    E12 --> N122[Node PJY-1-2-2]
+```
 
 ```
 Tunnel (PJY)
