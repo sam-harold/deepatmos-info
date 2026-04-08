@@ -43,7 +43,8 @@ graph TD
     subgraph "Edge Layer (Inside Tunnel)"
         RPi1["Edge Server 1 (RPi 5)"]
         RPi2["Edge Server n... (RPi 5)"]
-        SQLite[(Local SQLite Buffer)]
+        SQLite1[(Local SQLite 1)]
+        SQLite2[(Local SQLite n...)]
     end
 
     subgraph "Node Layer (In-Situ)"
@@ -59,8 +60,8 @@ graph TD
     ESP3 -- "TCP/TLS" --> RPi2
 
     %% Local Buffering
-    RPi1 -.-> SQLite
-    RPi2 -.-> SQLite
+    RPi1 -. "Local Write" .-> SQLite1
+    RPi2 -. "Local Write" .-> SQLite2
 
     RPi1 -- "HTTP Batch Sync" --> FastAPI
     RPi2 -- "HTTP Batch Sync" --> FastAPI
@@ -70,7 +71,7 @@ graph TD
 
     %% Application Layer Persistence
     Kafka -- "Consumption" --> FastAPI
-    FastAPI -.-> "ORM Persistence" -.-> DB
+    FastAPI -. "ORM Persistence" .-> DB
 
     %% User Facing
     FastAPI -- "SSE Alerts" --> Web
@@ -109,17 +110,21 @@ graph LR
 ```mermaid
 graph TD
     T[Tunnel PJY] --> K1[Kilometre 1]
-    T --> K2[Kilometre 2]
+    T --> Kn[Kilometre n...]
 
-    K1 --> E11[Edge PJY-1-1]
-    K1 --> E12[Edge PJY-1-2]
+    subgraph "Segment 1"
+        K1 --> E11[Edge PJY-1-1]
+        K1 --> E12[Edge PJY-1-2]
+        
+        E11 --> N111[Node 1]
+        E11 --> N11n[Node n...]
+    end
 
-    E11 --> N111[Node PJY-1-1-1]
-    E11 --> N112[Node PJY-1-1-2]
-    E11 --> N113[Node PJY-1-1-3]
-
-    E12 --> N121[Node PJY-1-2-1]
-    E12 --> N122[Node PJY-1-2-2]
+    subgraph "Segment n..."
+        Kn --> En1[Edge PJY-n-1]
+        En1 --> Nn11[Node 1]
+        En1 --> Nn1n[Node n...]
+    end
 ```
 
 ```
@@ -225,21 +230,22 @@ sequenceDiagram
     participant Edge as Edge Server (RPi)
     participant Kafka as Message Broker
     participant App as Application Layer
+    participant DB as PostgreSQL
     participant Client as Web/Mobile Client
 
     ESP->>Edge: TCP Stream (Raw Readings)
     Edge->>Edge: Validate & Analyze (Expert System + ML)
-
+    
     alt Alert Triggered
         Edge->>Kafka: Publish Alert (edge.alerts)
         Kafka->>App: Consume Alert
-        App->>App: Persist & Orchestrate
+        App->>DB: Persist Incident
         App->>Client: SSE / Push Notification
     end
 
     Note over Edge, App: Periodic Batch Sync
     Edge->>App: POST /readings/sync (Telemetry)
-    App->>App: Bulk Insert to PostgreSQL
+    App->>DB: Bulk Insert Readings
 ```
 
 ### Alert Suppression State Machine
