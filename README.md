@@ -149,6 +149,8 @@ Scale: each 1 km tunnel segment supports up to 4 edges and 20 nodes.
 
 ## 3. Communication Model
 
+| Data Flow | Direction | Protocol | Frequency |
+|-----------|----------|----------|-----------|
 | Sensor readings | Node → Edge | TCP + TLS (persistent connection) | Every reading cycle |
 | Actuator commands | Edge → Node | TCP (same connection) | Immediate on alert |
 | Readings sync | Edge → App | HTTP/S batch `POST /readings/sync` | Every 300 seconds |
